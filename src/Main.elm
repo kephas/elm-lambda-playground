@@ -21,6 +21,12 @@ type alias Model =
 l1 = Lambda "x" <| Variable "x"
 ll1 = Lambda "x" <| Lambda "y" <| Variable "x"
 ll2 = Lambda "x" <| Lambda "y" <| Variable "y"
+lll123 = Lambda "x" <| Lambda "y"  <| Lambda "z" <| Application (Application (Variable "x") (Variable "y")) (Variable "z")
+lll312 = Lambda "x" <| Lambda "y"  <| Lambda "z" <| Application (Application (Variable "z") (Variable "x")) (Variable "y")
+
+and = Lambda "p" <| Lambda "q" <| Application (Application (Variable "p") (Variable "q")) (Variable "p")
+or = Lambda "p" <| Lambda "q" <| Application (Application (Variable "p") (Variable "p")) (Variable "q")
+not = Lambda "x" <| Application (Application (Variable "x") ll2) ll1
 
 δ = Lambda "x" <| Application (Variable "x") (Variable "x")
 ω = Application δ δ
