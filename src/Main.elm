@@ -1,20 +1,37 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, text, div, h1, img)
+import Html exposing (Html, text, pre)
 import Html.Attributes exposing (src)
 
 
 ---- MODEL ----
 
+type Expression
+    = Lambda String Expression
+    | Variable String
+    | Application Expression Expression
 
 type alias Model =
-    {}
+    { expr : Expression }
 
+
+---- Common expressions
+
+l1 = Lambda "x" <| Variable "x"
+ll1 = Lambda "x" <| Lambda "y" <| Variable "x"
+ll2 = Lambda "x" <| Lambda "y" <| Variable "y"
+
+δ = Lambda "x" <| Application (Variable "x") (Variable "x")
+ω = Application δ δ
+
+
+
+---- INIT ----
 
 init : ( Model, Cmd Msg )
 init =
-    ( {}, Cmd.none )
+    ( Model ll2, Cmd.none )
 
 
 
@@ -33,13 +50,21 @@ update msg model =
 
 ---- VIEW ----
 
+viewExpr : Expression -> String
+viewExpr expr =
+    case expr of
+        Variable name ->
+            name
+
+        Application f arg ->
+            viewExpr f ++ " " ++ viewExpr arg
+
+        Lambda var body ->
+            "λ" ++ var ++ "." ++ viewExpr body
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ img [ src "/logo.svg" ] []
-        , h1 [] [ text "Your Elm App is working!" ]
-        ]
+    pre [] [ text <| viewExpr model.expr ]
 
 
 
