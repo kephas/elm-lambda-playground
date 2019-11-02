@@ -3,6 +3,7 @@ module Main exposing (..)
 import Browser
 import Html exposing (Html, text, pre)
 import Html.Attributes exposing (src)
+import String.Interpolate exposing (interpolate)
 
 
 ---- MODEL ----
@@ -56,6 +57,8 @@ update msg model =
 
 ---- VIEW ----
 
+parenthesize str = interpolate "({0})" [str]
+
 viewExpr : Expression -> String
 viewExpr expr =
     case expr of
@@ -63,7 +66,14 @@ viewExpr expr =
             name
 
         Application f arg ->
-            viewExpr f ++ " " ++ viewExpr arg
+            let fMod = case f of
+                            Lambda _ _ -> parenthesize
+                            _ -> identity
+                argMod = case arg of
+                             Application _ _ -> parenthesize
+                             _ -> identity
+            in
+                (fMod <| viewExpr f) ++ " " ++ (argMod <| viewExpr arg)
 
         Lambda var body ->
             "λ" ++ var ++ "." ++ viewExpr body
