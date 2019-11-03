@@ -33,12 +33,16 @@ not = Lambda "x" <| Application (Application (Variable "x") ll2) ll1
 ω = Application δ δ
 
 
+y = let y0 = Lambda "x" <| Application (Variable "f") (Application (Variable "x") (Variable "x"))
+    in
+        Lambda "f" <| Application y0 y0
+
 
 ---- INIT ----
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model ll2, Cmd.none )
+    ( Model (Application y ω), Cmd.none )
 
 
 
