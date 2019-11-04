@@ -1,8 +1,9 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, text, pre)
+import Html exposing (Html, text, div, pre, button)
 import Html.Attributes exposing (src)
+import Html.Events exposing (onClick)
 import String.Interpolate exposing (interpolate)
 
 
@@ -14,7 +15,7 @@ type Expression
     | Application Expression Expression
 
 type alias Model =
-    { expr : Expression }
+    { mexpr : Maybe Expression }
 
 
 ---- Common expressions
@@ -134,7 +135,7 @@ substitute var value expr =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model (Application y ω), Cmd.none )
+    ( Model <| Just (Application y ω), Cmd.none )
 
 
 
@@ -142,13 +143,19 @@ init =
 
 
 type Msg
-    = NoOp
+    = Reduce Path
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case model.mexpr of
+        Just expr ->
+            case msg of
+                Reduce path ->
+                    ( { mexpr = betaReduce expr path }, Cmd.none )
 
+        Nothing ->
+            ( model, Cmd.none )
 
 
 ---- VIEW ----
@@ -174,10 +181,27 @@ viewExpr expr =
         Lambda var body ->
             "λ" ++ var ++ "." ++ viewExpr body
 
+reductionButton title mpath =
+    case mpath of
+        Just path ->
+            button [ onClick <| Reduce path  ] [ text <| title ++ ": " ++ (pathStr path) ]
+
+        Nothing ->
+            button [] [ text <| title ++ ": X" ]
+
 view : Model -> Html Msg
 view model =
-    pre [] [ text <| viewExpr model.expr ]
+    case model.mexpr of
+        Just expr ->
+            div []
+                [ div [] [ reductionButton "Normal order" <| normalOrder expr
+                         , reductionButton "Applicative order" <| applicativeOrder expr
+                         ]
+                , pre [] [ text <| viewExpr expr ]
+                ]
 
+        Nothing ->
+            pre [] [ text "Error" ]
 
 
 ---- PROGRAM ----
