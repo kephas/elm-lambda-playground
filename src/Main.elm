@@ -172,13 +172,13 @@ update msg model =
 
 parenthesize htmls = [ text "(" ] ++ htmls ++ [ text ")" ]
 
-highlightValue : List (Html Msg) -> List (Html Msg)
-highlightValue contents =
-  [ span [ style "background" "#5f5" ] contents ]
+addColor : String -> List (Html Msg) -> List (Html Msg)
+addColor color contents =
+  [ span [ style "background" color ] contents ]
 
-highlightVar : List (Html Msg) -> List (Html Msg)
-highlightVar contents =
-  [ span [ style "background" "orange" ] contents ]
+highlightValue = addColor "#5f5"
+highlightUse = addColor "orange"
+highlightVar = addColor "#f55"
 
 
 type DisplayMode = Follow Path | Highlight String | Normal
@@ -190,7 +190,7 @@ viewExpr expr display =
     case (expr, display) of
         (Variable name1, Highlight name2)  ->
           if name1 == name2 then
-            highlightVar <| [ text name1 ]
+            highlightUse <| [ text name1 ]
           else
             [ text name1 ]
 
@@ -241,8 +241,10 @@ viewExpr expr display =
         (Lambda var body, Follow (Body :: path2)) ->
           [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body <| Follow path2)
 
-        (Lambda fvar body, Highlight _) ->
-          [ text <| "λ" ++ fvar ++ "." ] ++ (viewExpr body display)
+        (Lambda fvar body, Highlight hvar) ->
+          let varMod = if fvar == hvar then highlightVar else identity
+          in
+          [ text <| "λ" ] ++ (varMod [ text fvar ]) ++ [ text "." ] ++ (viewExpr body display)
 
         (Lambda var body, Normal) ->
           [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body display)
