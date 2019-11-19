@@ -1,9 +1,10 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, text, div, pre, button)
-import Html.Attributes exposing (src)
-import Html.Events exposing (onClick)
+import Html exposing (Html, text, div, pre, span, button)
+import Html.Attributes exposing (src, style)
+import Html.Events exposing (onClick, onMouseOut, onMouseOver)
+import Maybe.Extra as ME
 import String.Interpolate exposing (interpolate)
 
 
@@ -15,7 +16,9 @@ type Expression
     | Application Expression Expression
 
 type alias Model =
-    { mexpr : Maybe Expression }
+    { mexpr : Maybe Expression
+    , display : DisplayMode
+    }
 
 
 ---- Common expressions
@@ -135,7 +138,7 @@ substitute var value expr =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model <| Just (Application y ω), Cmd.none )
+    ( { mexpr = Just (Application y ω), display = Normal }, Cmd.none )
 
 
 
@@ -143,7 +146,8 @@ init =
 
 
 type Msg
-    = Reduce Path
+    = Reduce Path (Expression -> Maybe Path)
+    | ChangeDisplay DisplayMode
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -151,8 +155,14 @@ update msg model =
     case model.mexpr of
         Just expr ->
             case msg of
-                Reduce path ->
-                    ( { mexpr = betaReduce expr path }, Cmd.none )
+                Reduce path strategy ->
+                  let reduction = betaReduce expr path
+                      mpath = Maybe.map strategy reduction |> ME.join
+                  in
+                  ( { mexpr = reduction, display = mpath |> Maybe.map Follow |> Maybe.withDefault Normal}, Cmd.none )
+
+                ChangeDisplay display ->
+                  ( { model | display = display }, Cmd.none )
 
         Nothing ->
             ( model, Cmd.none )
@@ -160,31 +170,90 @@ update msg model =
 
 ---- VIEW ----
 
-parenthesize str = interpolate "({0})" [str]
+parenthesize htmls = [ text "(" ] ++ htmls ++ [ text ")" ]
 
-viewExpr : Expression -> String
-viewExpr expr =
-    case expr of
-        Variable name ->
-            name
+highlightValue : List (Html Msg) -> List (Html Msg)
+highlightValue contents =
+  [ span [ style "background" "#5f5" ] contents ]
 
-        Application f arg ->
-            let fMod = case f of
-                            Lambda _ _ -> parenthesize
-                            _ -> identity
-                argMod = case arg of
-                             Application _ _ -> parenthesize
-                             _ -> identity
-            in
-                (fMod <| viewExpr f) ++ " " ++ (argMod <| viewExpr arg)
+highlightVar : List (Html Msg) -> List (Html Msg)
+highlightVar contents =
+  [ span [ style "background" "orange" ] contents ]
 
-        Lambda var body ->
-            "λ" ++ var ++ "." ++ viewExpr body
 
-reductionButton title mpath =
-    case mpath of
+type DisplayMode = Follow Path | Highlight String | Normal
+
+space = [ text " " ]
+
+viewExpr : Expression -> DisplayMode -> List (Html Msg)
+viewExpr expr display =
+    case (expr, display) of
+        (Variable name1, Highlight name2)  ->
+          if name1 == name2 then
+            highlightVar <| [ text name1 ]
+          else
+            [ text name1 ]
+
+        (Variable name, _) ->
+          [ text <| name ]
+
+        (Application (Lambda var body) arg, Follow []) ->
+          let argMod = case arg of
+                         Application _ _ -> parenthesize
+                         _ -> identity
+          in
+          (parenthesize <| viewExpr (Lambda var body) <| Highlight var) ++ space ++ highlightValue (argMod <| viewExpr arg Normal)
+
+        (Application f arg, _) ->
+          let fMod = case f of
+                       Lambda var _ -> parenthesize
+                       _ -> identity
+              argMod = case arg of
+                         Application _ _ -> parenthesize
+                         _ -> identity
+          in
+          case display of
+            Follow path ->
+              case path of
+                Fun :: path2 ->
+                  (fMod <| viewExpr f <| Follow path2) ++ space ++ (argMod <| viewExpr arg Normal)
+
+                Arg :: path2 ->
+                  (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg <| Follow path2)
+
+                _ ->
+                  [] -- BAAD should be Nothing
+
+            Highlight hvar ->
+              case f of
+                Lambda fvar _ ->
+                  if hvar == fvar then
+                    (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg display)
+                  else
+                    (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
+
+                _ ->
+                  (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
+
+            Normal ->
+              (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
+
+        (Lambda var body, Follow (Body :: path2)) ->
+          [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body <| Follow path2)
+
+        (Lambda fvar body, Highlight _) ->
+          [ text <| "λ" ++ fvar ++ "." ] ++ (viewExpr body display)
+
+        (Lambda var body, Normal) ->
+          [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body display)
+
+        _ ->
+          [] -- BAAD should be Nothing
+
+reductionButton title strategy expr =
+    case strategy expr of
         Just path ->
-            button [ onClick <| Reduce path  ] [ text <| title ++ ": " ++ (pathStr path) ]
+            button [ onClick <| Reduce path strategy, onMouseOver <| ChangeDisplay <| Follow path, onMouseOut <| ChangeDisplay Normal ] [ text <| title ++ ": " ++ (pathStr path) ]
 
         Nothing ->
             button [] [ text <| title ++ ": X" ]
@@ -194,10 +263,10 @@ view model =
     case model.mexpr of
         Just expr ->
             div []
-                [ div [] [ reductionButton "Normal order" <| normalOrder expr
-                         , reductionButton "Applicative order" <| applicativeOrder expr
+                [ div [] [ reductionButton "Normal order" normalOrder  expr
+                         , reductionButton "Applicative order" applicativeOrder expr
                          ]
-                , pre [] [ text <| viewExpr expr ]
+                , pre [] <| viewExpr expr model.display
                 ]
 
         Nothing ->
