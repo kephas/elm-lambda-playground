@@ -41,6 +41,23 @@ y = let y0 = Lambda "x" <| Application (Variable "f") (Application (Variable "x"
     in
         Lambda "f" <| Application y0 y0
 
+-- Church numbers
+
+c_zero = Lambda "f0" <| Lambda "x0" <| Variable "x0"
+c_is_zero = Lambda "n" <| Application (Application (Variable "n") (Lambda "x" ll2)) ll1
+c_plus = Lambda "m⁺" <| Lambda "n⁺" <| Lambda "f⁺" <| Lambda "x⁺" <| Application (Application (Variable "m⁺") (Variable "f⁺")) (Application (Application (Variable "n⁺") (Variable "f⁺")) (Variable "x⁺"))
+c_succ = Lambda "n˃" <| Lambda "f˃" <| Lambda "x˃" <| Application (Variable "f˃") (Application (Application (Variable "n˃") (Variable "f˃")) (Variable "x˃"))
+c_pred = Lambda "n˂" <| Lambda "f˂" <| Lambda "x˂" <| Application (Application (Application (Variable "n˂") (Lambda "g˂" <| Lambda "h˂" <| Application (Variable "h˂") (Application (Variable "g˂") (Variable "f˂")))) (Lambda "u˂" <| Variable "x˂")) (Lambda "u˂" <| Variable "u˂")
+c_sub = Lambda "m" <| Lambda "n⁻" <| Application (Application (Variable "n⁻") c_pred) (Variable "m")
+
+churchNum : Int -> Expression
+churchNum num =
+  let loop n = if n == 0 then
+                 Variable "x"
+               else
+                 Application (Variable "f") <| loop (n - 1)
+  in
+  Lambda "f" <| Lambda "x" <| loop num
 
 ---- Beta reduction
 
@@ -138,8 +155,8 @@ substitute var value expr =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { mexpr = Just (Application y ω), display = Normal }, Cmd.none )
-
+    --( { mexpr = Just <| Application (Application c_plus (Application c_succ c_zero)) (Application c_succ <| Application c_succ c_zero), display = Normal }, Cmd.none )
+  ( { mexpr = Just <| Application (Application c_sub (churchNum 4)) (churchNum 3), display = Normal }, Cmd.none )
 
 
 ---- UPDATE ----
