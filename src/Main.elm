@@ -253,7 +253,7 @@ viewExpr expr display =
                   (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
 
             Normal ->
-              (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
+              (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg Normal)
 
         (Lambda var body, Follow (Body :: path2)) ->
           [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body <| Follow path2)
@@ -264,7 +264,7 @@ viewExpr expr display =
           [ text <| "λ" ] ++ (varMod [ text fvar ]) ++ [ text "." ] ++ (viewExpr body display)
 
         (Lambda var body, Normal) ->
-          [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body display)
+          [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body Normal)
 
         _ ->
           [] -- BAAD should be Nothing
