@@ -223,7 +223,7 @@ viewExpr expr display =
 
         (Application f arg, _) ->
           let fMod = case f of
-                       Lambda var _ -> parenthesize
+                       Lambda var _ -> parenthesize -- BAAD not enough, any expression ending with a lambda needs parentheses
                        _ -> identity
               argMod = case arg of
                          Application _ _ -> parenthesize
