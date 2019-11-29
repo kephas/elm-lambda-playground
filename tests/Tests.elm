@@ -2,6 +2,9 @@ module Tests exposing (..)
 
 import Test exposing (..)
 import Expect
+import Lambda.Calculus exposing (..)
+import Parser as P
+import Lambda.Parser as LP
 
 
 -- Check out https://package.elm-lang.org/packages/elm-explorations/test/latest to learn more about testing in Elm!
@@ -9,14 +12,17 @@ import Expect
 
 all : Test
 all =
-    describe "A Test Suite"
-        [ test "Addition" <|
+    describe "Test parsing"
+        [ test "Variable" <|
             \_ ->
-                Expect.equal 10 (3 + 7)
-        , test "String.left" <|
+                Expect.equal (Ok (Variable "foo")) <| P.run LP.expression "foo"
+        , test "Single lambda" <|
             \_ ->
-                Expect.equal "a" (String.left 1 "abcdefg")
-        , test "This test should fail" <|
+                Expect.equal (Ok (Lambda "x" (Variable "x"))) <| P.run LP.expression "\\x.x"
+        , test "Nested lambdas" <|
             \_ ->
-                Expect.fail "failed as expected!"
+                Expect.equal (Ok (Lambda "x" (Lambda "y" (Variable "x")))) <| P.run LP.expression "\\x.\\y.x"
+        , test "Basic application" <|
+            \_ ->
+                Expect.equal (Ok (Application (Variable "x") (Variable "y"))) <| P.run LP.expression "x y"
         ]
