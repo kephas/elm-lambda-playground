@@ -1,8 +1,8 @@
 import './main.css';
-import { Elm } from './Main.elm';
+import { Elm } from './Lambda/Playground.elm';
 import * as serviceWorker from './serviceWorker';
 
-Elm.Main.init({
+Elm.Lambda.Playground.init({
   node: document.getElementById('root')
 });
 
