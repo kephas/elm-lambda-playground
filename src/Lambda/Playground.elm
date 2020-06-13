@@ -1,12 +1,15 @@
 module Lambda.Playground exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, pre, span, text)
+import Cmd.Extra exposing (withNoCmd)
+import Html exposing (Html, button, div, h1, hr, option, pre, select, span, text, textarea)
 import Html.Attributes exposing (src, style)
-import Html.Events exposing (onClick, onMouseOut, onMouseOver)
+import Html.Events exposing (onClick, onInput, onMouseOut, onMouseOver)
 import Lambda.Calculus exposing (..)
 import Lambda.Church as C
+import Lambda.Parser as LP
 import Maybe.Extra as ME
+import Parser as P
 import String.Interpolate exposing (interpolate)
 
 
@@ -15,7 +18,9 @@ import String.Interpolate exposing (interpolate)
 
 
 type alias Model =
-    { mexpr : Maybe Expression
+    { exprToEval : Maybe Expression
+    , exprParsed : Result (List P.DeadEnd) Expression
+    , neverSeenAnExpression : Bool
     , display : DisplayMode
     }
 
@@ -42,16 +47,9 @@ pathStr =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { mexpr =
-            Just <|
-                Application
-                    (Application
-                        (Application (Lambda "-" <| Lambda "4" <| Lambda "3" <| Application (Application (Variable "-") (Variable "4")) (Variable "3"))
-                            C.sub
-                        )
-                        (C.fromInt 4)
-                    )
-                    (C.fromInt 3)
+    ( { exprToEval = Nothing
+      , exprParsed = Err []
+      , neverSeenAnExpression = True
       , display = Normal
       }
     , Cmd.none
@@ -65,14 +63,16 @@ init =
 type Msg
     = Reduce Path (Expression -> Maybe Path)
     | ChangeDisplay DisplayMode
+    | ChangeExpr String
+    | LoadExpr
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case model.mexpr of
-        Just expr ->
-            case msg of
-                Reduce path strategy ->
+    case msg of
+        Reduce path strategy ->
+            case model.exprToEval of
+                Just expr ->
                     let
                         reduction =
                             betaReduce expr path
@@ -80,13 +80,29 @@ update msg model =
                         mpath =
                             Maybe.map strategy reduction |> ME.join
                     in
-                    ( { mexpr = reduction, display = mpath |> Maybe.map Follow |> Maybe.withDefault Normal }, Cmd.none )
+                    { model | exprToEval = reduction, display = mpath |> Maybe.map Follow |> Maybe.withDefault Normal } |> withNoCmd
 
-                ChangeDisplay display ->
-                    ( { model | display = display }, Cmd.none )
+                Nothing ->
+                    model |> withNoCmd
 
-        Nothing ->
-            ( model, Cmd.none )
+        ChangeDisplay display ->
+            { model | display = display } |> withNoCmd
+
+        ChangeExpr code ->
+            { model | exprParsed = code |> P.run LP.expression } |> withNoCmd
+
+        LoadExpr ->
+            case model.exprParsed of
+                Ok expr ->
+                    { model
+                        | exprToEval = Just expr
+                        , display = Normal
+                        , neverSeenAnExpression = False
+                    }
+                        |> withNoCmd
+
+                Err _ ->
+                    model |> withNoCmd
 
 
 
@@ -177,10 +193,10 @@ viewExpr expr display =
                         Arg :: path2 ->
                             (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg <| Follow path2)
 
+                        -- BAAD should be Nothing
                         _ ->
                             []
 
-                -- BAAD should be Nothing
                 Highlight hvar ->
                     case f of
                         Lambda fvar _ ->
@@ -213,37 +229,53 @@ viewExpr expr display =
         ( Lambda var body, Normal ) ->
             [ text <| "λ" ++ var ++ "." ] ++ viewExpr body Normal
 
+        -- BAAD should be Nothing
         _ ->
             []
-
-
-
--- BAAD should be Nothing
 
 
 reductionButton title strategy expr =
     case strategy expr of
         Just path ->
-            button [ onClick <| Reduce path strategy, onMouseOver <| ChangeDisplay <| Follow path, onMouseOut <| ChangeDisplay Normal ] [ text <| title ++ ": " ++ pathStr path ]
+            button [ onClick <| Reduce path strategy, onMouseOver <| ChangeDisplay <| Follow path, onMouseOut <| ChangeDisplay Normal ] [ text title ]
 
         Nothing ->
-            button [] [ text <| title ++ ": X" ]
+            button [] [ text title ]
 
 
 view : Model -> Html Msg
 view model =
-    case model.mexpr of
-        Just expr ->
-            div []
-                [ div []
-                    [ reductionButton "Normal order" normalOrder expr
-                    , reductionButton "Applicative order" applicativeOrder expr
-                    ]
-                , pre [] <| viewExpr expr model.display
-                ]
+    div [ style "margin" "2em" ]
+        [ h1 [] [ text "Lambda Calculus playground" ]
+        , textarea [ onInput ChangeExpr, style "width" "100%" ] []
+        , case model.exprParsed of
+            Ok expr ->
+                pre [] <| viewExpr expr Normal
 
-        Nothing ->
-            pre [] [ text "Error" ]
+            Err _ ->
+                pre [ style "color" "red" ] [ text "Cannot parse an expression" ]
+        , button [ onClick LoadExpr ] [ text "Load" ]
+        , hr [ style "margin" "1em" ] []
+        , case model.exprToEval of
+            Just expr ->
+                div []
+                    [ div []
+                        [ reductionButton "Normal order" normalOrder expr
+                        , reductionButton "Applicative order" applicativeOrder expr
+                        ]
+                    , pre [] <| viewExpr expr model.display
+                    ]
+
+            Nothing ->
+                pre []
+                    [ text <|
+                        if model.neverSeenAnExpression then
+                            "No expression yet."
+
+                        else
+                            "Error."
+                    ]
+        ]
 
 
 
