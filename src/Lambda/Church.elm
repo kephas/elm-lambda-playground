@@ -2,10 +2,9 @@ module Lambda.Church exposing (..)
 
 import Lambda.Calculus exposing (..)
 
+
 {-| Church encoding for numbers
 -}
-
-
 zero =
     Lambda "f0" <| Lambda "x0" <| Variable "x0"
 

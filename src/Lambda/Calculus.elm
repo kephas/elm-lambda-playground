@@ -133,13 +133,11 @@ lll312 =
     Lambda "x" <| Lambda "y" <| Lambda "z" <| Application (Application (Variable "z") (Variable "x")) (Variable "y")
 
 
-
 {-| Boolean operations
 
 Those need true/false to be ll1/ll2
+
 -}
-
-
 and =
     Lambda "p" <| Lambda "q" <| Application (Application (Variable "p") (Variable "q")) (Variable "p")
 
