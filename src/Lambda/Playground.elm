@@ -263,10 +263,36 @@ reductionButton title strategy expr =
             button [] [ text title ]
 
 
+exampleExpr =
+    Application
+        (Application
+            (Application (Lambda "-" <| Lambda "4" <| Lambda "3" <| Application (Application (Variable "-") (Variable "4")) (Variable "3"))
+                C.sub
+            )
+            (C.fromInt 4)
+        )
+        (C.fromInt 3)
+
+
 view : Model -> Html Msg
 view model =
     div [ style "margin" "2em" ]
         [ h1 [] [ text "Lambda Calculus playground" ]
+        , div [ style "text-align" "left", style "margin-bottom" "2em" ] <|
+            [ h2 [] [ text "Syntax:" ]
+            , dl []
+                [ dt [] [ text "Lambda function" ]
+                , dd []
+                    [ code [] [ text "\\foo.foo" ]
+                    , span [] [ text " or " ]
+                    , code [] [ text "λbaz.baz" ]
+                    ]
+                , dt [] [ text "Function application" ]
+                , dd [] [ code [] [ text "foo bar" ] ]
+                ]
+            , h3 [] [ text "Example" ]
+            ]
+                ++ viewExpr exampleExpr Anywhere Normal
         , textarea [ onInput ChangeExpr, style "width" "100%" ] []
         , case model.exprParsed of
             Ok expr ->
