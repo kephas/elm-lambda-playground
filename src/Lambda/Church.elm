@@ -29,6 +29,10 @@ sub =
     Lambda "m" <| Lambda "n⁻" <| Application (Application (Variable "n⁻") pred) (Variable "m")
 
 
+mult =
+    Lambda "m⋅" <| Lambda "n⋅" <| Lambda "f⋅" <| Lambda "x⋅" <| Application (Application (Variable "m⋅") (Application (Variable "n⋅") (Variable "f⋅"))) (Variable "x⋅")
+
+
 fromInt : Int -> Expression
 fromInt num =
     let

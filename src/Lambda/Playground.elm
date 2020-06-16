@@ -2,7 +2,7 @@ module Lambda.Playground exposing (..)
 
 import Browser
 import Cmd.Extra exposing (withNoCmd)
-import Html exposing (Html, button, code, dd, div, dl, dt, h1, h2, h3, hr, option, pre, select, span, text, textarea)
+import Html exposing (Html, a, button, code, dd, div, dl, dt, h1, h2, h3, hr, li, option, pre, select, span, text, textarea, ul)
 import Html.Attributes exposing (src, style)
 import Html.Events exposing (onClick, onInput, onMouseOut, onMouseOver)
 import Lambda.Calculus exposing (..)
@@ -64,11 +64,21 @@ type Msg
     = Reduce Path (Expression -> Maybe Path)
     | ChangeDisplay DisplayMode
     | ChangeExpr String
+    | SelectExample Expression
     | LoadExpr
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        switchToExpr expr =
+            { model
+                | exprToEval = Just expr
+                , display = Normal
+                , neverSeenAnExpression = False
+            }
+                |> withNoCmd
+    in
     case msg of
         Reduce path strategy ->
             case model.exprToEval of
@@ -91,15 +101,13 @@ update msg model =
         ChangeExpr code ->
             { model | exprParsed = code |> P.run LP.expression } |> withNoCmd
 
+        SelectExample expr ->
+            switchToExpr expr
+
         LoadExpr ->
             case model.exprParsed of
                 Ok expr ->
-                    { model
-                        | exprToEval = Just expr
-                        , display = Normal
-                        , neverSeenAnExpression = False
-                    }
-                        |> withNoCmd
+                    switchToExpr expr
 
                 Err _ ->
                     model |> withNoCmd
@@ -263,15 +271,28 @@ reductionButton title strategy expr =
             button [] [ text title ]
 
 
-exampleExpr =
-    Application
-        (Application
-            (Application (Lambda "-" <| Lambda "4" <| Lambda "3" <| Application (Application (Variable "-") (Variable "4")) (Variable "3"))
-                C.sub
+exampleExprs =
+    [ ( "4 - 3"
+      , Application
+            (Application
+                (Application (Lambda "-" <| Lambda "4" <| Lambda "3" <| Application (Application (Variable "-") (Variable "4")) (Variable "3"))
+                    C.sub
+                )
+                (C.fromInt 4)
             )
-            (C.fromInt 4)
-        )
-        (C.fromInt 3)
+            (C.fromInt 3)
+      )
+    , ( "2 * 3"
+      , Application
+            (Application
+                (Application (Lambda "*" <| Lambda "2" <| Lambda "3" <| Application (Application (Variable "*") (Variable "2")) (Variable "3"))
+                    C.mult
+                )
+                (C.fromInt 2)
+            )
+            (C.fromInt 3)
+      )
+    ]
 
 
 view : Model -> Html Msg
@@ -289,10 +310,27 @@ view model =
                     ]
                 , dt [] [ text "Function application" ]
                 , dd [] [ code [] [ text "foo bar" ] ]
+                , dt [] [ text "Parentheses delimitate expressions" ]
+                , dd []
+                    [ code [] [ text "f (g x)" ]
+                    , span [] [ text " or " ]
+                    , code [] [ text "(λa.a) λb.b" ]
+                    ]
                 ]
-            , h3 [] [ text "Example" ]
+            , h3 [] [ text "Examples" ]
+            , dl [] <|
+                List.concatMap
+                    (\( desc, example ) ->
+                        [ dt [] [ text desc ]
+                        , dd []
+                            [ button [ onClick <| SelectExample example ] <|
+                                viewExpr example Anywhere Normal
+                            ]
+                        ]
+                    )
+                    exampleExprs
             ]
-                ++ viewExpr exampleExpr Anywhere Normal
+        , h2 [] [ text "Input your own expression" ]
         , textarea [ onInput ChangeExpr, style "width" "100%" ] []
         , case model.exprParsed of
             Ok expr ->
@@ -302,6 +340,7 @@ view model =
                 pre [ style "color" "red" ] [ text "Cannot parse an expression" ]
         , button [ onClick LoadExpr ] [ text "Load" ]
         , hr [ style "margin" "1em" ] []
+        , h2 [] [ text "Evaluation" ]
         , case model.exprToEval of
             Just expr ->
                 div []
