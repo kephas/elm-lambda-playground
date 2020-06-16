@@ -2,8 +2,8 @@ module Lambda.Playground exposing (..)
 
 import Browser
 import Cmd.Extra exposing (withNoCmd)
-import Html exposing (Html, a, button, code, dd, div, dl, dt, h1, h2, h3, hr, li, option, pre, select, span, text, textarea, ul)
-import Html.Attributes exposing (src, style)
+import Html exposing (Html, a, button, code, dd, div, dl, dt, h1, h2, h3, hr, img, li, option, pre, select, span, text, textarea, ul)
+import Html.Attributes exposing (alt, height, href, src, style, target, width)
 import Html.Events exposing (onClick, onInput, onMouseOut, onMouseOver)
 import Lambda.Calculus exposing (..)
 import Lambda.Church as C
@@ -297,8 +297,24 @@ exampleExprs =
 
 view : Model -> Html Msg
 view model =
-    div [ style "margin" "2em" ]
-        [ h1 [] [ text "Lambda Calculus playground" ]
+    div [ style "margin" "0 2em" ]
+        [ a
+            [ href "https://github.com/kephas/elm-lambda-playground/"
+            , alt "Fork me on GitHub"
+            , target "_blank"
+            , style "position" "absolute"
+            , style "top" "0"
+            , style "right" "0"
+            ]
+            [ img
+                [ src "https://github.blog/wp-content/uploads/2008/12/forkme_right_orange_ff7600.png?resize=149%2C149"
+                , height 149
+                , width 149
+                , style "margin" "0"
+                ]
+                []
+            ]
+        , h1 [ style "margin-top" "2em" ] [ text "Lambda Calculus playground" ]
         , div [ style "text-align" "left", style "margin-bottom" "2em" ] <|
             [ h2 [] [ text "Syntax:" ]
             , dl []
