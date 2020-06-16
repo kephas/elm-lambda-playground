@@ -2,7 +2,7 @@ module Lambda.Playground exposing (..)
 
 import Browser
 import Cmd.Extra exposing (withNoCmd)
-import Html exposing (Html, button, div, h1, hr, option, pre, select, span, text, textarea)
+import Html exposing (Html, button, code, dd, div, dl, dt, h1, h2, h3, hr, option, pre, select, span, text, textarea)
 import Html.Attributes exposing (src, style)
 import Html.Events exposing (onClick, onInput, onMouseOut, onMouseOver)
 import Lambda.Calculus exposing (..)
@@ -136,12 +136,33 @@ type DisplayMode
     | Normal
 
 
+type Placement
+    = Anywhere
+    | InAppliedFunction
+    | RightmostInAppliedFunction
+
+
 space =
     [ text " " ]
 
 
-viewExpr : Expression -> DisplayMode -> List (Html Msg)
-viewExpr expr display =
+viewExpr : Expression -> Placement -> DisplayMode -> List (Html Msg)
+viewExpr expr placement display =
+    let
+        lambdaMod lambdaView =
+            if placement == RightmostInAppliedFunction then
+                parenthesize lambdaView
+
+            else
+                lambdaView
+
+        argPlacement =
+            if placement == InAppliedFunction then
+                RightmostInAppliedFunction
+
+            else
+                Anywhere
+    in
     case ( expr, display ) of
         ( Variable name1, Highlight name2 ) ->
             if name1 == name2 then
@@ -163,7 +184,7 @@ viewExpr expr display =
                         _ ->
                             identity
             in
-            (parenthesize <| viewExpr (Lambda var body) <| Highlight var) ++ space ++ highlightValue (argMod <| viewExpr arg Normal)
+            (parenthesize <| viewExpr (Lambda var body) Anywhere <| Highlight var) ++ space ++ highlightValue (argMod <| viewExpr arg argPlacement Normal)
 
         ( Application f arg, _ ) ->
             let
@@ -172,7 +193,6 @@ viewExpr expr display =
                         Lambda var _ ->
                             parenthesize
 
-                        -- BAAD not enough, any expression ending with a lambda needs parentheses
                         _ ->
                             identity
 
@@ -188,10 +208,10 @@ viewExpr expr display =
                 Follow path ->
                     case path of
                         Fun :: path2 ->
-                            (fMod <| viewExpr f <| Follow path2) ++ space ++ (argMod <| viewExpr arg Normal)
+                            (fMod <| viewExpr f InAppliedFunction <| Follow path2) ++ space ++ (argMod <| viewExpr arg argPlacement Normal)
 
                         Arg :: path2 ->
-                            (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg <| Follow path2)
+                            (fMod <| viewExpr f InAppliedFunction Normal) ++ space ++ (argMod <| viewExpr arg argPlacement <| Follow path2)
 
                         -- BAAD should be Nothing
                         _ ->
@@ -201,19 +221,19 @@ viewExpr expr display =
                     case f of
                         Lambda fvar _ ->
                             if hvar == fvar then
-                                (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg display)
+                                (fMod <| viewExpr f InAppliedFunction Normal) ++ space ++ (argMod <| viewExpr arg argPlacement display)
 
                             else
-                                (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
+                                (fMod <| viewExpr f InAppliedFunction display) ++ space ++ (argMod <| viewExpr arg argPlacement display)
 
                         _ ->
-                            (fMod <| viewExpr f display) ++ space ++ (argMod <| viewExpr arg display)
+                            (fMod <| viewExpr f InAppliedFunction display) ++ space ++ (argMod <| viewExpr arg argPlacement display)
 
                 Normal ->
-                    (fMod <| viewExpr f Normal) ++ space ++ (argMod <| viewExpr arg Normal)
+                    (fMod <| viewExpr f InAppliedFunction Normal) ++ space ++ (argMod <| viewExpr arg argPlacement Normal)
 
         ( Lambda var body, Follow (Body :: path2) ) ->
-            [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body <| Follow path2)
+            lambdaMod <| [ text <| "λ" ++ var ++ "." ] ++ (viewExpr body Anywhere <| Follow path2)
 
         ( Lambda fvar body, Highlight hvar ) ->
             let
@@ -224,10 +244,10 @@ viewExpr expr display =
                     else
                         identity
             in
-            [ text <| "λ" ] ++ varMod [ text fvar ] ++ [ text "." ] ++ viewExpr body display
+            lambdaMod <| [ text <| "λ" ] ++ varMod [ text fvar ] ++ [ text "." ] ++ viewExpr body Anywhere display
 
         ( Lambda var body, Normal ) ->
-            [ text <| "λ" ++ var ++ "." ] ++ viewExpr body Normal
+            lambdaMod <| [ text <| "λ" ++ var ++ "." ] ++ viewExpr body Anywhere Normal
 
         -- BAAD should be Nothing
         _ ->
@@ -250,7 +270,7 @@ view model =
         , textarea [ onInput ChangeExpr, style "width" "100%" ] []
         , case model.exprParsed of
             Ok expr ->
-                pre [] <| viewExpr expr Normal
+                pre [] <| viewExpr expr Anywhere Normal
 
             Err _ ->
                 pre [ style "color" "red" ] [ text "Cannot parse an expression" ]
@@ -263,7 +283,7 @@ view model =
                         [ reductionButton "Normal order" normalOrder expr
                         , reductionButton "Applicative order" applicativeOrder expr
                         ]
-                    , pre [] <| viewExpr expr model.display
+                    , pre [] <| viewExpr expr Anywhere model.display
                     ]
 
             Nothing ->
